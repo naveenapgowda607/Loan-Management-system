@@ -35,7 +35,7 @@
             overflow: hidden;
         }
 
-        /* AUTH STYLES */
+        /* AUTH CONTAINER */
         .auth-container {
             width: 100%;
             height: 100vh;
@@ -80,9 +80,17 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 25px;
+            margin-bottom: 10px;
             font-size: 1.8em;
             font-weight: 700;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 25px;
+            font-weight: 500;
         }
 
         .auth-form-group {
@@ -147,6 +155,20 @@
             font-weight: 600;
         }
 
+        .auth-links {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.85em;
+        }
+
+        .auth-links a {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 5px;
+        }
+
         #authMessage {
             text-align: center;
             margin-bottom: 16px;
@@ -169,6 +191,28 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
             display: block;
+        }
+
+        /* FORM SECTIONS */
+        .auth-form-section {
+            display: none;
+        }
+
+        .auth-form-section.active {
+            display: block;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.85em;
+        }
+
+        .back-link a {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
         }
 
         /* MAIN APP STYLES */
@@ -755,39 +799,109 @@
     <!-- AUTH CONTAINER -->
     <div class="auth-container active" id="authContainer">
         <div class="auth-box">
-            <h2 id="authTitle">💰 Register</h2>
             <div id="authMessage"></div>
-            <form id="authForm">
-                <div class="auth-form-group">
-                    <label>👤 Username *</label>
-                    <input type="text" id="authUsername" placeholder="Create username" required>
+            
+            <!-- LOGIN FORM -->
+            <div id="loginForm" class="auth-form-section active">
+                <h2>🔐 Login</h2>
+                <p class="auth-subtitle">Access your loan account</p>
+                <form id="authFormLogin" onsubmit="handleLogin(event)">
+                    <div class="auth-form-group">
+                        <label>👤 Username *</label>
+                        <input type="text" id="loginUsername" placeholder="Enter username" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🔒 Password *</label>
+                        <input type="password" id="loginPassword" placeholder="Enter password" required>
+                    </div>
+
+                    <button type="submit" class="auth-btn">🚀 Login</button>
+                </form>
+
+                <div class="auth-links">
+                    <a onclick="showForgotPassword()">Forgot Password?</a>
                 </div>
 
-                <div class="auth-form-group">
-                    <label>📧 Email *</label>
-                    <input type="email" id="authEmail" placeholder="Enter your email" required>
+                <div class="auth-toggle">
+                    <p>New user? <a onclick="showRegisterForm()">Register here</a></p>
                 </div>
+            </div>
 
-                <div class="auth-form-group">
-                    <label>📱 Phone Number *</label>
-                    <input type="tel" id="authPhone" placeholder="Enter phone number" required>
+            <!-- REGISTER FORM -->
+            <div id="registerForm" class="auth-form-section">
+                <h2>💰 Register</h2>
+                <p class="auth-subtitle">Create new account</p>
+                <form id="authFormRegister" onsubmit="handleRegister(event)">
+                    <div class="auth-form-group">
+                        <label>👤 Username *</label>
+                        <input type="text" id="regUsername" placeholder="Create username" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>📧 Email *</label>
+                        <input type="email" id="regEmail" placeholder="Enter your email" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>📱 Phone Number *</label>
+                        <input type="tel" id="regPhone" placeholder="Enter phone number" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🏠 Address *</label>
+                        <input type="text" id="regAddress" placeholder="Enter your address" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🔒 Password *</label>
+                        <input type="password" id="regPassword" placeholder="Create a password" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🔐 Confirm Password *</label>
+                        <input type="password" id="regConfirmPassword" placeholder="Confirm password" required>
+                    </div>
+
+                    <button type="submit" class="auth-btn">✅ Register</button>
+                </form>
+
+                <div class="auth-toggle">
+                    <p>Already have an account? <a onclick="showLoginForm()">Login here</a></p>
                 </div>
+            </div>
 
-                <div class="auth-form-group">
-                    <label>🏠 Address *</label>
-                    <input type="text" id="authAddress" placeholder="Enter your address" required>
+            <!-- FORGOT PASSWORD FORM -->
+            <div id="forgotForm" class="auth-form-section">
+                <h2>🔑 Forgot Password</h2>
+                <p class="auth-subtitle">Reset your password</p>
+                <form id="authFormForgot" onsubmit="handleForgotPassword(event)">
+                    <div class="auth-form-group">
+                        <label>👤 Username or Email *</label>
+                        <input type="text" id="forgotUsername" placeholder="Enter username or email" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>📧 Registered Email *</label>
+                        <input type="email" id="forgotEmail" placeholder="Enter registered email" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🔒 New Password *</label>
+                        <input type="password" id="forgotNewPassword" placeholder="Enter new password" required>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label>🔐 Confirm New Password *</label>
+                        <input type="password" id="forgotConfirmPassword" placeholder="Confirm new password" required>
+                    </div>
+
+                    <button type="submit" class="auth-btn">🔄 Reset Password</button>
+                </form>
+
+                <div class="back-link">
+                    <a onclick="showLoginForm()">← Back to Login</a>
                 </div>
-
-                <div class="auth-form-group">
-                    <label>🔒 Password *</label>
-                    <input type="password" id="authPassword" placeholder="Create a password" required>
-                </div>
-
-                <button type="submit" class="auth-btn">Sign Up</button>
-            </form>
-
-            <div class="auth-toggle">
-                <p>Already have an account? <a onclick="toggleAuthMode()">Login here</a></p>
             </div>
         </div>
     </div>
@@ -901,7 +1015,7 @@
                 <h3>✨ Features & Guide</h3>
                 
                 <div class="info-card">
-                    <div class="info-card-title">✏️ Edit Loan Details</div>
+                    <div class="info-card-title">���️ Edit Loan Details</div>
                     <div class="info-card-desc">
                         Edit borrower information, loan amount, interest rate, and status.
                     </div>
@@ -966,7 +1080,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             setTodayDate();
             checkIfLoggedIn();
-            document.getElementById('authForm').addEventListener('submit', handleAuth);
             document.getElementById('loanForm').addEventListener('submit', createLoan);
         });
 
@@ -983,55 +1096,155 @@
             }
         }
 
-        function handleAuth(e) {
-            e.preventDefault();
-            const isRegister = document.getElementById('authTitle').textContent.includes('Register');
-            const username = document.getElementById('authUsername').value.trim();
-            const email = document.getElementById('authEmail').value.trim();
-            const phone = document.getElementById('authPhone').value.trim();
-            const address = document.getElementById('authAddress').value.trim();
-            const password = document.getElementById('authPassword').value;
+        // FORM NAVIGATION
+        function showLoginForm() {
+            document.getElementById('loginForm').classList.add('active');
+            document.getElementById('registerForm').classList.remove('active');
+            document.getElementById('forgotForm').classList.remove('active');
+            document.getElementById('authMessage').textContent = '';
+            document.getElementById('authMessage').className = '';
+        }
 
-            if (!username || !email || !phone || !address || !password) {
+        function showRegisterForm() {
+            document.getElementById('loginForm').classList.remove('active');
+            document.getElementById('registerForm').classList.add('active');
+            document.getElementById('forgotForm').classList.remove('active');
+            document.getElementById('authMessage').textContent = '';
+            document.getElementById('authMessage').className = '';
+        }
+
+        function showForgotPassword() {
+            document.getElementById('loginForm').classList.remove('active');
+            document.getElementById('registerForm').classList.remove('active');
+            document.getElementById('forgotForm').classList.add('active');
+            document.getElementById('authMessage').textContent = '';
+            document.getElementById('authMessage').className = '';
+        }
+
+        // LOGIN HANDLER
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
                 showAuthMessage('❌ Please fill all fields!', 'error');
                 return;
             }
 
-            if (isRegister) {
-                // Register
-                const users = JSON.parse(localStorage.getItem('users')) || [];
-                if (users.find(u => u.username === username)) {
-                    showAuthMessage('❌ Username already exists!', 'error');
-                    return;
-                }
-                const newUser = {
-                    id: Date.now(),
-                    username,
-                    email,
-                    phone,
-                    address,
-                    password
-                };
-                users.push(newUser);
-                localStorage.setItem('users', JSON.stringify(users));
-                currentUser = newUser;
-                localStorage.setItem('currentUser', JSON.stringify(newUser));
-                localStorage.setItem('loans_' + newUser.id, JSON.stringify([]));
-                showAuthMessage('✅ Account created! Welcome!', 'success');
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const user = users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showAuthMessage('✅ Login successful!', 'success');
                 setTimeout(showApp, 1500);
             } else {
-                // Login
-                const users = JSON.parse(localStorage.getItem('users')) || [];
-                const user = users.find(u => u.username === username && u.password === password);
-                if (user) {
-                    currentUser = user;
-                    localStorage.setItem('currentUser', JSON.stringify(user));
-                    showAuthMessage('✅ Login successful!', 'success');
-                    setTimeout(showApp, 1500);
-                } else {
-                    showAuthMessage('❌ Invalid credentials!', 'error');
-                }
+                showAuthMessage('❌ Invalid username or password!', 'error');
             }
+        }
+
+        // REGISTER HANDLER
+        function handleRegister(event) {
+            event.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const address = document.getElementById('regAddress').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (!username || !email || !phone || !address || !password || !confirmPassword) {
+                showAuthMessage('❌ Please fill all fields!', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showAuthMessage('❌ Passwords do not match!', 'error');
+                return;
+            }
+
+            if (password.length < 4) {
+                showAuthMessage('❌ Password must be at least 4 characters!', 'error');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            if (users.find(u => u.username === username)) {
+                showAuthMessage('❌ Username already exists!', 'error');
+                return;
+            }
+
+            if (users.find(u => u.email === email)) {
+                showAuthMessage('❌ Email already registered!', 'error');
+                return;
+            }
+
+            const newUser = {
+                id: Date.now(),
+                username,
+                email,
+                phone,
+                address,
+                password
+            };
+
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+            localStorage.setItem('loans_' + newUser.id, JSON.stringify([]));
+            
+            showAuthMessage('✅ Account created successfully! Logging in...', 'success');
+            
+            setTimeout(() => {
+                currentUser = newUser;
+                localStorage.setItem('currentUser', JSON.stringify(newUser));
+                showApp();
+            }, 1500);
+        }
+
+        // FORGOT PASSWORD HANDLER
+        function handleForgotPassword(event) {
+            event.preventDefault();
+            const usernameOrEmail = document.getElementById('forgotUsername').value.trim();
+            const email = document.getElementById('forgotEmail').value.trim();
+            const newPassword = document.getElementById('forgotNewPassword').value;
+            const confirmPassword = document.getElementById('forgotConfirmPassword').value;
+
+            if (!usernameOrEmail || !email || !newPassword || !confirmPassword) {
+                showAuthMessage('❌ Please fill all fields!', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showAuthMessage('❌ Passwords do not match!', 'error');
+                return;
+            }
+
+            if (newPassword.length < 4) {
+                showAuthMessage('❌ Password must be at least 4 characters!', 'error');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const user = users.find(u => (u.username === usernameOrEmail || u.email === usernameOrEmail) && u.email === email);
+
+            if (!user) {
+                showAuthMessage('❌ User not found! Check username and email.', 'error');
+                return;
+            }
+
+            // Update password
+            user.password = newPassword;
+            localStorage.setItem('users', JSON.stringify(users));
+            showAuthMessage('✅ Password reset successfully! Please login.', 'success');
+
+            setTimeout(() => {
+                showLoginForm();
+                document.getElementById('authMessage').textContent = '';
+                document.getElementById('authMessage').className = '';
+                document.getElementById('authFormLogin').reset();
+            }, 2000);
         }
 
         function showAuthMessage(message, type) {
@@ -1044,31 +1257,6 @@
                     messageEl.className = '';
                 }, 5000);
             }
-        }
-
-        function toggleAuthMode() {
-            const authTitle = document.getElementById('authTitle');
-            const authForm = document.getElementById('authForm');
-            const authBtn = authForm.querySelector('button[type="submit"]');
-            const toggleText = document.querySelector('.auth-toggle p');
-
-            if (authTitle.textContent.includes('Register')) {
-                authTitle.textContent = '🔐 Login';
-                authBtn.textContent = 'Login';
-                toggleText.innerHTML = "Don't have an account? <a onclick=\"toggleAuthMode()\">Register here</a>";
-                document.getElementById('authPhone').parentElement.style.display = 'none';
-                document.getElementById('authAddress').parentElement.style.display = 'none';
-                authForm.reset();
-            } else {
-                authTitle.textContent = '💰 Register';
-                authBtn.textContent = 'Sign Up';
-                toggleText.innerHTML = "Already have an account? <a onclick=\"toggleAuthMode()\">Login here</a>";
-                document.getElementById('authPhone').parentElement.style.display = 'block';
-                document.getElementById('authAddress').parentElement.style.display = 'block';
-                authForm.reset();
-            }
-            document.getElementById('authMessage').textContent = '';
-            document.getElementById('authMessage').className = '';
         }
 
         function showApp() {
@@ -1085,11 +1273,8 @@
                 localStorage.removeItem('currentUser');
                 document.getElementById('mainContainer').classList.remove('active');
                 document.getElementById('authContainer').classList.add('active');
-                document.getElementById('authForm').reset();
-                document.getElementById('authTitle').textContent = '💰 Register';
-                document.getElementById('authPhone').parentElement.style.display = 'block';
-                document.getElementById('authAddress').parentElement.style.display = 'block';
-                document.querySelector('.auth-toggle p').innerHTML = "Already have an account? <a onclick=\"toggleAuthMode()\">Login here</a>";
+                showLoginForm();
+                document.getElementById('authFormLogin').reset();
             }
         }
 
