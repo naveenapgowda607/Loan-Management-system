@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Loan Manager">
     <meta name="theme-color" content="#667eea">
     <title>💰 Loan Manager - Professional</title>
-    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23667eea' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='120' fill='white'>💰</text></svg>">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23667eea' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='100' fill='white' font-weight='bold'>💰</text></svg>">
     <style>
         * {
             margin: 0;
@@ -59,6 +59,8 @@
             max-width: 400px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
             animation: slideUp 0.5s ease;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         @keyframes slideUp {
@@ -152,18 +154,21 @@
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: 500;
+            display: none;
         }
 
         #authMessage.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
+            display: block;
         }
 
         #authMessage.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+            display: block;
         }
 
         /* MAIN APP STYLES */
@@ -219,6 +224,10 @@
         .user-name {
             font-size: 0.85em;
             font-weight: 600;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .logout-btn {
@@ -243,6 +252,7 @@
             border-bottom: 2px solid #e0e0e0;
             flex-shrink: 0;
             gap: 0;
+            overflow-x: auto;
         }
         
         .tabs button {
@@ -256,6 +266,8 @@
             color: #666;
             transition: all 0.3s;
             border-bottom: 3px solid transparent;
+            min-width: 80px;
+            white-space: nowrap;
         }
         
         .tabs button.active {
@@ -339,6 +351,7 @@
         textarea {
             resize: vertical;
             min-height: 80px;
+            font-family: inherit;
         }
         
         .button-group {
@@ -642,6 +655,8 @@
             align-items: center;
             padding: 12px 0;
             border-bottom: 1px solid #e0e7ff;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .calculation-item:last-child {
@@ -652,6 +667,8 @@
             color: #2d3748;
             font-weight: 600;
             font-size: 0.92em;
+            flex: 1;
+            min-width: 150px;
         }
         
         .calculation-value {
@@ -944,6 +961,7 @@
 
     <script>
         let currentUser = null;
+        let loans = [];
 
         document.addEventListener('DOMContentLoaded', function() {
             setTodayDate();
@@ -955,26 +973,35 @@
         function checkIfLoggedIn() {
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                showApp();
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    showApp();
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                    localStorage.removeItem('currentUser');
+                }
             }
         }
 
         function handleAuth(e) {
             e.preventDefault();
             const isRegister = document.getElementById('authTitle').textContent.includes('Register');
-            const username = document.getElementById('authUsername').value;
-            const email = document.getElementById('authEmail').value;
-            const phone = document.getElementById('authPhone').value;
-            const address = document.getElementById('authAddress').value;
+            const username = document.getElementById('authUsername').value.trim();
+            const email = document.getElementById('authEmail').value.trim();
+            const phone = document.getElementById('authPhone').value.trim();
+            const address = document.getElementById('authAddress').value.trim();
             const password = document.getElementById('authPassword').value;
-            const messageEl = document.getElementById('authMessage');
+
+            if (!username || !email || !phone || !address || !password) {
+                showAuthMessage('❌ Please fill all fields!', 'error');
+                return;
+            }
 
             if (isRegister) {
                 // Register
                 const users = JSON.parse(localStorage.getItem('users')) || [];
                 if (users.find(u => u.username === username)) {
-                    showAuthMessage('Username already exists!', 'error');
+                    showAuthMessage('❌ Username already exists!', 'error');
                     return;
                 }
                 const newUser = {
@@ -989,6 +1016,7 @@
                 localStorage.setItem('users', JSON.stringify(users));
                 currentUser = newUser;
                 localStorage.setItem('currentUser', JSON.stringify(newUser));
+                localStorage.setItem('loans_' + newUser.id, JSON.stringify([]));
                 showAuthMessage('✅ Account created! Welcome!', 'success');
                 setTimeout(showApp, 1500);
             } else {
@@ -1001,7 +1029,7 @@
                     showAuthMessage('✅ Login successful!', 'success');
                     setTimeout(showApp, 1500);
                 } else {
-                    showAuthMessage('❌ Invalid username or password!', 'error');
+                    showAuthMessage('❌ Invalid credentials!', 'error');
                 }
             }
         }
@@ -1010,47 +1038,45 @@
             const messageEl = document.getElementById('authMessage');
             messageEl.textContent = message;
             messageEl.className = type;
+            if (type === 'error') {
+                setTimeout(() => {
+                    messageEl.textContent = '';
+                    messageEl.className = '';
+                }, 5000);
+            }
         }
 
         function toggleAuthMode() {
-            const isRegister = document.getElementById('authTitle').textContent.includes('Register');
             const authTitle = document.getElementById('authTitle');
-            const phoneGroup = document.getElementById('authPhone').parentElement;
-            const addressGroup = document.getElementById('authAddress').parentElement;
-            const emailGroup = document.getElementById('authEmail').parentElement;
+            const authForm = document.getElementById('authForm');
+            const authBtn = authForm.querySelector('button[type="submit"]');
             const toggleText = document.querySelector('.auth-toggle p');
-            const submitBtn = document.querySelector('.auth-btn');
 
-            if (isRegister) {
-                authTitle.textContent = '💰 Login';
-                phoneGroup.style.display = 'none';
-                addressGroup.style.display = 'none';
-                emailGroup.style.display = 'none';
-                document.getElementById('authPhone').removeAttribute('required');
-                document.getElementById('authAddress').removeAttribute('required');
-                document.getElementById('authEmail').removeAttribute('required');
-                toggleText.innerHTML = 'Don\'t have an account? <a onclick="toggleAuthMode()">Register here</a>';
-                submitBtn.textContent = 'Login';
+            if (authTitle.textContent.includes('Register')) {
+                authTitle.textContent = '🔐 Login';
+                authBtn.textContent = 'Login';
+                toggleText.innerHTML = "Don't have an account? <a onclick=\"toggleAuthMode()\">Register here</a>";
+                document.getElementById('authPhone').parentElement.style.display = 'none';
+                document.getElementById('authAddress').parentElement.style.display = 'none';
+                authForm.reset();
             } else {
                 authTitle.textContent = '💰 Register';
-                phoneGroup.style.display = 'block';
-                addressGroup.style.display = 'block';
-                emailGroup.style.display = 'block';
-                document.getElementById('authPhone').setAttribute('required', '');
-                document.getElementById('authAddress').setAttribute('required', '');
-                document.getElementById('authEmail').setAttribute('required', '');
-                toggleText.innerHTML = 'Already have an account? <a onclick="toggleAuthMode()">Login here</a>';
-                submitBtn.textContent = 'Sign Up';
+                authBtn.textContent = 'Sign Up';
+                toggleText.innerHTML = "Already have an account? <a onclick=\"toggleAuthMode()\">Login here</a>";
+                document.getElementById('authPhone').parentElement.style.display = 'block';
+                document.getElementById('authAddress').parentElement.style.display = 'block';
+                authForm.reset();
             }
-            document.getElementById('authForm').reset();
             document.getElementById('authMessage').textContent = '';
+            document.getElementById('authMessage').className = '';
         }
 
         function showApp() {
             document.getElementById('authContainer').classList.remove('active');
             document.getElementById('mainContainer').classList.add('active');
             document.getElementById('userDisplay').textContent = currentUser.username;
-            loadAllLoans();
+            loadLoans();
+            displayLoans();
         }
 
         function logout() {
@@ -1060,351 +1086,327 @@
                 document.getElementById('mainContainer').classList.remove('active');
                 document.getElementById('authContainer').classList.add('active');
                 document.getElementById('authForm').reset();
-                document.getElementById('authMessage').textContent = '';
-                toggleAuthMode();
+                document.getElementById('authTitle').textContent = '💰 Register';
+                document.getElementById('authPhone').parentElement.style.display = 'block';
+                document.getElementById('authAddress').parentElement.style.display = 'block';
+                document.querySelector('.auth-toggle p').innerHTML = "Already have an account? <a onclick=\"toggleAuthMode()\">Login here</a>";
             }
         }
 
         function setTodayDate() {
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('startDate').value = today;
-        }
-
-        function showTab(e, tabName) {
-            e.preventDefault();
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            e.target.classList.add('active');
-            if (tabName === 'home') {
-                loadAllLoans();
+            const startDateInput = document.getElementById('startDate');
+            if (startDateInput) {
+                startDateInput.valueAsDate = new Date(today);
             }
         }
 
         function calculateInterest() {
-            const loanAmount = parseFloat(document.getElementById('loanAmount').value) || 0;
-            const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
-            const agreementMonths = parseInt(document.getElementById('agreementMonths').value) || 0;
+            const principal = parseFloat(document.getElementById('loanAmount').value) || 0;
+            const rate = parseFloat(document.getElementById('interestRate').value) || 0;
+            const months = parseInt(document.getElementById('agreementMonths').value) || 0;
 
-            if (loanAmount > 0 && interestRate > 0 && agreementMonths > 0) {
-                const monthlyInterest = (loanAmount * interestRate) / 100;
-                const totalInterest = monthlyInterest * agreementMonths;
-                const totalAmount = loanAmount + totalInterest;
+            if (principal > 0 && rate > 0 && months > 0) {
+                const monthlyInterest = (principal * rate) / 100;
+                const totalInterest = monthlyInterest * months;
+                const totalAmount = principal + totalInterest;
 
-                document.getElementById('displayPrincipal').textContent = loanAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-                document.getElementById('displayMonthlyInterest').textContent = monthlyInterest.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-                document.getElementById('displayDuration').textContent = agreementMonths;
-                document.getElementById('displayTotalInterest').textContent = totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-                document.getElementById('displayTotalAmount').textContent = totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-
+                document.getElementById('displayPrincipal').textContent = principal.toLocaleString('en-IN');
+                document.getElementById('displayMonthlyInterest').textContent = monthlyInterest.toFixed(2).toLocaleString('en-IN');
+                document.getElementById('displayDuration').textContent = months;
+                document.getElementById('displayTotalInterest').textContent = totalInterest.toFixed(2).toLocaleString('en-IN');
+                document.getElementById('displayTotalAmount').textContent = totalAmount.toFixed(2).toLocaleString('en-IN');
                 document.getElementById('calculationResult').style.display = 'block';
             } else {
                 document.getElementById('calculationResult').style.display = 'none';
             }
         }
 
-        function loadAllLoans() {
-            const loans = JSON.parse(localStorage.getItem('loans')) || [];
-            const userLoans = loans.filter(l => l.userId === currentUser.id);
-            const summaryCards = document.getElementById('summaryCards');
+        function createLoan(e) {
+            e.preventDefault();
+
+            const borrowerName = document.getElementById('borrowerName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const borrowerAddress = document.getElementById('borrowerAddress').value.trim();
+            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const interestRate = parseFloat(document.getElementById('interestRate').value);
+            const startDate = document.getElementById('startDate').value;
+            const agreementMonths = parseInt(document.getElementById('agreementMonths').value);
+            const description = document.getElementById('loanDescription').value.trim();
+
+            if (!borrowerName || !fatherName || !borrowerAddress || !loanAmount || !interestRate || !startDate || !agreementMonths) {
+                showFormMessage('❌ Please fill all required fields!', 'error');
+                return;
+            }
+
+            const newLoan = {
+                id: Date.now(),
+                borrowerName,
+                fatherName,
+                borrowerAddress,
+                loanAmount,
+                interestRate,
+                startDate,
+                agreementMonths,
+                description,
+                status: 'Active',
+                createdDate: new Date().toISOString(),
+                payments: []
+            };
+
+            loans.push(newLoan);
+            saveLoans();
+            showFormMessage('✅ Loan created successfully!', 'success');
+            document.getElementById('loanForm').reset();
+            document.getElementById('calculationResult').style.display = 'none';
+            setTodayDate();
+            displayLoans();
+
+            setTimeout(() => {
+                document.querySelector('.tab-btn').click();
+            }, 1500);
+        }
+
+        function saveLoans() {
+            if (currentUser) {
+                localStorage.setItem('loans_' + currentUser.id, JSON.stringify(loans));
+            }
+        }
+
+        function loadLoans() {
+            if (currentUser) {
+                const savedLoans = localStorage.getItem('loans_' + currentUser.id);
+                loans = savedLoans ? JSON.parse(savedLoans) : [];
+            }
+        }
+
+        function displayLoans() {
             const loansList = document.getElementById('loansList');
-            const homeMessage = document.getElementById('homeMessage');
+            const summaryCards = document.getElementById('summaryCards');
+            
+            loansList.innerHTML = '';
+            summaryCards.innerHTML = '';
 
-            // Calculate summary
-            const totalLoans = userLoans.length;
-            const activeLoans = userLoans.filter(l => l.status === 'Active').length;
-            const totalLoanAmount = userLoans.reduce((sum, l) => sum + (l.loanAmount || 0), 0);
-            const totalInterestAmount = userLoans.reduce((sum, l) => sum + (l.totalInterest || 0), 0);
+            if (loans.length === 0) {
+                loansList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <div class="empty-text">No Loans Yet</div>
+                        <p>Create your first loan to get started</p>
+                    </div>
+                `;
+                summaryCards.innerHTML = '';
+                return;
+            }
 
-            // Display summary cards
+            let totalLoans = loans.length;
+            let totalAmount = 0;
+            let totalInterest = 0;
+            let totalReceived = 0;
+
+            loans.forEach(loan => {
+                totalAmount += loan.loanAmount;
+                const monthlyInterest = (loan.loanAmount * loan.interestRate) / 100;
+                const totalLoanInterest = monthlyInterest * loan.agreementMonths;
+                totalInterest += totalLoanInterest;
+                totalReceived += loan.payments ? loan.payments.filter(p => p).length * monthlyInterest : 0;
+
+                const card = document.createElement('div');
+                card.className = 'loan-card';
+                card.onclick = () => viewLoanDetails(loan.id);
+
+                const statusClass = loan.status === 'Active' ? 'status-active' : 'status-closed';
+                card.innerHTML = `
+                    <div class="loan-header">
+                        <div class="loan-name">${loan.borrowerName}</div>
+                        <span class="status-badge ${statusClass}">${loan.status}</span>
+                    </div>
+                    <div class="loan-info">
+                        <div class="info-item">
+                            <span class="info-label">Amount</span>
+                            <span class="info-value">₹${loan.loanAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Duration</span>
+                            <span class="info-value">${loan.agreementMonths} Months</span>
+                        </div>
+                    </div>
+                `;
+                loansList.appendChild(card);
+            });
+
             summaryCards.innerHTML = `
                 <div class="summary-card">
                     <div class="summary-label">Total Loans</div>
                     <div class="summary-value">${totalLoans}</div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-label">Active Loans</div>
-                    <div class="summary-value">${activeLoans}</div>
-                </div>
-                <div class="summary-card">
                     <div class="summary-label">Total Amount</div>
-                    <div class="summary-value">₹${totalLoanAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                    <div class="summary-value">₹${totalAmount.toLocaleString('en-IN')}</div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-label">Total Interest</div>
-                    <div class="summary-value">₹${totalInterestAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                    <div class="summary-label">Expected Interest</div>
+                    <div class="summary-value">₹${totalInterest.toFixed(0).toLocaleString('en-IN')}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Received</div>
+                    <div class="summary-value">₹${totalReceived.toFixed(0).toLocaleString('en-IN')}</div>
+                </div>
+            `;
+        }
+
+        function viewLoanDetails(loanId) {
+            const loan = loans.find(l => l.id === loanId);
+            if (!loan) return;
+
+            const detailsView = document.getElementById('detailsView');
+            const monthlyInterest = (loan.loanAmount * loan.interestRate) / 100;
+            const totalInterest = monthlyInterest * loan.agreementMonths;
+            const totalAmount = loan.loanAmount + totalInterest;
+
+            let paymentsHTML = '';
+            for (let i = 1; i <= loan.agreementMonths; i++) {
+                const isChecked = loan.payments && loan.payments[i - 1] ? 'checked' : '';
+                paymentsHTML += `
+                    <div class="payment-item">
+                        <div class="payment-info">
+                            <div class="payment-month">Month ${i}</div>
+                            <div class="payment-amount">₹${monthlyInterest.toFixed(2)}</div>
+                        </div>
+                        <input type="checkbox" class="payment-checkbox" ${isChecked} onchange="updatePayment(${loanId}, ${i - 1})">
+                    </div>
+                `;
+            }
+
+            detailsView.innerHTML = `
+                <button class="back-btn" onclick="goBackToList()">← Back to List</button>
+                
+                <div class="details-section">
+                    <div class="section-title">📋 Loan Information</div>
+                    <div class="info-card">
+                        <div class="info-card-title">Borrower</div>
+                        <div class="info-card-desc">${loan.borrowerName}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-title">Father's Name</div>
+                        <div class="info-card-desc">${loan.fatherName}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-title">Address</div>
+                        <div class="info-card-desc">${loan.borrowerAddress}</div>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <div class="section-title">💰 Financial Details</div>
+                    <div class="calculation-box">
+                        <div class="calculation-item">
+                            <span class="calculation-label">Principal:</span>
+                            <span class="calculation-value">₹${loan.loanAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div class="calculation-item">
+                            <span class="calculation-label">Monthly Interest:</span>
+                            <span class="calculation-value">₹${monthlyInterest.toFixed(2)}</span>
+                        </div>
+                        <div class="calculation-item">
+                            <span class="calculation-label">Duration:</span>
+                            <span class="calculation-value">${loan.agreementMonths} Months</span>
+                        </div>
+                        <div class="calculation-item">
+                            <span class="calculation-label">Total Interest:</span>
+                            <span class="calculation-value total-amount">₹${totalInterest.toFixed(2)}</span>
+                        </div>
+                        <div class="calculation-item">
+                            <span class="calculation-label">Total Payable:</span>
+                            <span class="calculation-value total-amount">₹${totalAmount.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <div class="section-title">📅 Payment Tracking</div>
+                    ${paymentsHTML}
+                </div>
+
+                <div class="details-section">
+                    <div class="button-group">
+                        <button class="btn-primary btn-small" onclick="editLoan(${loanId})">✏️ Edit</button>
+                        <button class="btn-warning btn-small" onclick="toggleLoanStatus(${loanId})">${loan.status === 'Active' ? '🔒 Close' : '🔓 Reopen'}</button>
+                        <button class="btn-danger btn-small" onclick="deleteLoan(${loanId})">🗑️ Delete</button>
+                    </div>
                 </div>
             `;
 
-            if (userLoans.length === 0) {
-                homeMessage.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No loans yet!</div><p style="font-size: 0.9em; color: #999;">Create your first loan to get started</p></div>';
-                loansList.innerHTML = '';
-                return;
-            }
+            document.getElementById('loansList').style.display = 'none';
+            document.getElementById('summaryCards').style.display = 'none';
+            detailsView.classList.add('active');
+        }
 
-            homeMessage.innerHTML = '';
-            let html = '';
-            userLoans.forEach(loan => {
-                html += `<div class="loan-card" onclick="viewDetails('${loan.id}')">
-                    <div class="loan-header">
-                        <div class="loan-name">${loan.borrowerName}</div>
-                        <span class="status-badge status-${loan.status.toLowerCase()}">${loan.status === 'Active' ? '✅' : '✔️'} ${loan.status}</span>
-                    </div>
-                    <div class="loan-info">
-                        <div class="info-item">
-                            <span class="info-label">Loan Amount</span>
-                            <span class="info-value">₹${loan.loanAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Interest Rate</span>
-                            <span class="info-value">${loan.interestRate}% Monthly</span>
-                        </div>
-                    </div>
-                    <div class="loan-info">
-                        <div class="info-item">
-                            <span class="info-label">Total Interest</span>
-                            <span class="info-value">₹${loan.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Total Payable</span>
-                            <span class="info-value">₹${loan.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                        </div>
-                    </div>
-                    <div style="padding-top: 12px; border-top: 1px solid #e0e7ff; margin-top: 12px; font-size: 0.85em; color: #667eea; font-weight: 600;">
-                        📅 ${new Date(loan.startDate).toLocaleDateString('en-IN')} to ${new Date(loan.endDate).toLocaleDateString('en-IN')} (${loan.agreementMonths} months)
-                    </div>
-                </div>`;
-            });
-            loansList.innerHTML = html;
+        function goBackToList() {
             document.getElementById('detailsView').classList.remove('active');
+            document.getElementById('loansList').style.display = 'block';
+            document.getElementById('summaryCards').style.display = 'grid';
         }
 
-        function viewDetails(loanId) {
-            const loans = JSON.parse(localStorage.getItem('loans')) || [];
-            const loan = loans.find(l => l.id === loanId);
-            if (!loan) return;
-            
-            const payments = JSON.parse(localStorage.getItem('payments')) || [];
-            const loanPayments = payments.filter(p => p.loanId === loanId);
-            
-            let html = `<button class="back-btn" onclick="goBack()">← Back</button>`;
-            html += `<div class="details-section"><h3 style="margin-bottom: 10px;">${loan.borrowerName}</h3>
-                <p style="color: #666; margin-bottom: 15px;">Status: <span class="status-badge status-${loan.status.toLowerCase()}">${loan.status === 'Active' ? '✅' : '✔️'} ${loan.status}</span></p></div>`;
-            
-            html += `<div class="summary-grid">
-                <div class="summary-card"><div class="summary-label">Principal</div><div class="summary-value">₹${loan.loanAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>
-                <div class="summary-card"><div class="summary-label">Total Interest</div><div class="summary-value">₹${loan.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>
-                <div class="summary-card"><div class="summary-label">Total Payable</div><div class="summary-value">₹${loan.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>
-                <div class="summary-card"><div class="summary-label">Received</div><div class="summary-value">₹${loan.totalReceived.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>
-            </div>`;
-            
-            html += `<div class="details-section"><div class="section-title">👤 Borrower Details</div>
-                <p style="margin: 8px 0;"><strong>Name:</strong> ${loan.borrowerName}</p>
-                <p style="margin: 8px 0;"><strong>Father's Name:</strong> ${loan.fatherName}</p>
-                <p style="margin: 8px 0;"><strong>Address:</strong> ${loan.borrowerAddress}</p></div>`;
-
-            html += `<div class="details-section"><div class="section-title">💰 Financial Details</div>
-                <div class="calculation-box">
-                    <div class="calculation-item">
-                        <span class="calculation-label">Principal Amount:</span>
-                        <span class="calculation-value">₹${loan.loanAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div class="calculation-item">
-                        <span class="calculation-label">Rate of Interest:</span>
-                        <span class="calculation-value">${loan.interestRate}% Per Month</span>
-                    </div>
-                    <div class="calculation-item">
-                        <span class="calculation-label">Monthly Interest:</span>
-                        <span class="calculation-value">₹${loan.monthlyInterest.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div class="calculation-item">
-                        <span class="calculation-label">Duration:</span>
-                        <span class="calculation-value">${loan.agreementMonths} Months</span>
-                    </div>
-                    <div class="calculation-item">
-                        <span class="calculation-label">Total Interest:</span>
-                        <span class="calculation-value total-amount">₹${loan.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div class="calculation-item">
-                        <span class="calculation-label">Total Payable:</span>
-                        <span class="calculation-value total-amount">₹${loan.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                    </div>
-                </div>
-            </div>`;
-
-            html += `<div class="details-section"><div class="section-title">📅 Agreement Duration</div>
-                <p style="margin: 8px 0;"><strong>Start Date:</strong> ${new Date(loan.startDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                <p style="margin: 8px 0;"><strong>End Date:</strong> ${new Date(loan.endDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                <p style="margin: 8px 0;"><strong>Duration:</strong> ${loan.agreementMonths} months</p></div>`;
-
-            if (loan.loanDescription) {
-                html += `<div class="details-section"><div class="section-title">📝 Notes</div>
-                    <p style="background: #f8f9fa; padding: 10px; border-radius: 8px; border-left: 3px solid #667eea;">${loan.loanDescription}</p></div>`;
-            }
-            
-            html += `<div class="details-section"><div class="section-title">📋 Monthly Payments (${loanPayments.length})</div>`;
-            if (loanPayments.length > 0) {
-                loanPayments.forEach((payment, index) => {
-                    const isChecked = payment.collected > 0;
-                    html += `<div class="payment-item"><div class="payment-info">
-                        <div class="payment-month">Month ${payment.month}</div>
-                        <div class="payment-amount">₹${payment.expectedAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>
-                        <input type="checkbox" class="payment-checkbox" ${isChecked ? 'checked' : ''} onchange="togglePaymentStatus('${loanId}', ${index}, this.checked)"></div>`;
-                });
-            }
-            html += `</div>`;
-            
-            html += `<div class="edit-mode"><div class="section-title">✏️ Edit Loan</div>
-                <div class="form-group"><label>👤 Name:</label><input type="text" id="editBorrowerName" value="${loan.borrowerName}"></div>
-                <div class="form-group"><label>💵 Amount (₹):</label><input type="number" id="editLoanAmount" value="${loan.loanAmount}"></div>
-                <div class="form-group"><label>📊 Interest Rate (%):</label><input type="number" id="editInterestRate" value="${loan.interestRate}" step="0.01"></div>
-                <div class="form-group"><label>📝 Notes:</label><textarea id="editNotes">${loan.loanDescription || ''}</textarea></div>
-                <div class="form-group"><label>🔄 Status:</label><select id="editStatus">
-                    <option value="Active" ${loan.status === 'Active' ? 'selected' : ''}>Active</option>
-                    <option value="Closed" ${loan.status === 'Closed' ? 'selected' : ''}>Closed</option></select></div>
-                <div class="button-group">
-                    <button class="btn-success btn-small" onclick="saveEditedLoan('${loanId}')">💾 Save</button>
-                    <button class="btn-warning btn-small" onclick="discardChanges()">❌ Cancel</button></div></div>`;
-            
-            html += `<div class="button-group"><button class="btn-danger btn-small" onclick="deleteLoanFunc('${loanId}')">🗑️ Delete</button></div>`;
-            
-            document.getElementById('detailsView').innerHTML = html;
-            document.getElementById('detailsView').classList.add('active');
-            document.getElementById('loansList').innerHTML = '';
-        }
-
-        function togglePaymentStatus(loanId, paymentIndex, isChecked) {
-            const payments = JSON.parse(localStorage.getItem('payments')) || [];
-            const loanPayments = payments.filter(p => p.loanId === loanId);
-            const payment = loanPayments[paymentIndex];
-            
-            if (payment) {
-                const paymentIndex2 = payments.findIndex(p => p.id === payment.id);
-                payments[paymentIndex2].collected = isChecked ? payment.expectedAmount : 0;
-                localStorage.setItem('payments', JSON.stringify(payments));
-                
-                const loans = JSON.parse(localStorage.getItem('loans')) || [];
-                const loan = loans.find(l => l.id === loanId);
-                if (loan) {
-                    const updated = payments.filter(p => p.loanId === loanId);
-                    loan.totalReceived = updated.reduce((sum, p) => sum + p.collected, 0);
-                    localStorage.setItem('loans', JSON.stringify(loans));
-                }
-                viewDetails(loanId);
-            }
-        }
-
-        function saveEditedLoan(loanId) {
-            const loans = JSON.parse(localStorage.getItem('loans')) || [];
+        function updatePayment(loanId, monthIndex) {
             const loan = loans.find(l => l.id === loanId);
             if (loan) {
-                loan.borrowerName = document.getElementById('editBorrowerName').value;
-                loan.loanAmount = parseFloat(document.getElementById('editLoanAmount').value);
-                loan.interestRate = parseFloat(document.getElementById('editInterestRate').value);
-                loan.loanDescription = document.getElementById('editNotes').value;
-                loan.status = document.getElementById('editStatus').value;
-                
-                // Recalculate interest
-                loan.monthlyInterest = (loan.loanAmount * loan.interestRate) / 100;
-                loan.totalInterest = loan.monthlyInterest * loan.agreementMonths;
-                loan.totalAmount = loan.loanAmount + loan.totalInterest;
-                
-                localStorage.setItem('loans', JSON.stringify(loans));
-                alert('✅ Loan updated!');
-                viewDetails(loanId);
+                if (!loan.payments) {
+                    loan.payments = [];
+                }
+                loan.payments[monthIndex] = !loan.payments[monthIndex];
+                saveLoans();
+                viewLoanDetails(loanId);
             }
         }
 
-        function discardChanges() {
-            viewDetails(document.getElementById('detailsView').dataset.loanId);
-        }
-
-        function goBack() {
-            document.getElementById('detailsView').classList.remove('active');
-            loadAllLoans();
-        }
-
-        function createLoan(e) {
-            e.preventDefault();
-            const borrowerName = document.getElementById('borrowerName').value;
-            const fatherName = document.getElementById('fatherName').value;
-            const borrowerAddress = document.getElementById('borrowerAddress').value;
-            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
-            const interestRate = parseFloat(document.getElementById('interestRate').value);
-            const startDate = document.getElementById('startDate').value;
-            const agreementMonths = parseInt(document.getElementById('agreementMonths').value);
-            const loanDescription = document.getElementById('loanDescription').value;
-            
-            const monthlyInterest = (loanAmount * interestRate) / 100;
-            const totalInterest = monthlyInterest * agreementMonths;
-            const totalAmount = loanAmount + totalInterest;
-            
-            const endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + agreementMonths);
-            
-            const loanId = 'LOAN_' + Date.now();
-            const loan = {
-                id: loanId,
-                userId: currentUser.id,
-                borrowerName,
-                fatherName,
-                borrowerAddress,
-                loanAmount,
-                interestRate,
-                monthlyInterest,
-                totalInterest,
-                totalAmount,
-                startDate,
-                endDate: endDate.toISOString().split('T')[0],
-                agreementMonths,
-                loanDescription,
-                status: 'Active',
-                totalReceived: 0,
-                createdAt: new Date().toISOString()
-            };
-            
-            const loans = JSON.parse(localStorage.getItem('loans')) || [];
-            loans.push(loan);
-            localStorage.setItem('loans', JSON.stringify(loans));
-            
-            const payments = JSON.parse(localStorage.getItem('payments')) || [];
-            for (let month = 1; month <= agreementMonths; month++) {
-                payments.push({
-                    id: 'PAY_' + loanId + '_' + month,
-                    loanId,
-                    month,
-                    expectedAmount: monthlyInterest,
-                    collected: 0,
-                    collectionDate: ''
-                });
+        function toggleLoanStatus(loanId) {
+            const loan = loans.find(l => l.id === loanId);
+            if (loan) {
+                loan.status = loan.status === 'Active' ? 'Closed' : 'Active';
+                saveLoans();
+                viewLoanDetails(loanId);
             }
-            localStorage.setItem('payments', JSON.stringify(payments));
-            
-            document.getElementById('formMessage').innerHTML = '<div class="alert alert-success">✅ Loan agreement created successfully!</div>';
-            document.getElementById('loanForm').reset();
-            setTodayDate();
-            document.getElementById('calculationResult').style.display = 'none';
-            
-            setTimeout(() => {
-                document.getElementById('formMessage').innerHTML = '';
-                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                document.getElementById('home').classList.add('active');
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                loadAllLoans();
-            }, 1500);
         }
 
-        function deleteLoanFunc(loanId) {
-            if (!confirm('Delete this loan permanently?')) return;
-            let loans = JSON.parse(localStorage.getItem('loans')) || [];
-            loans = loans.filter(l => l.id !== loanId);
-            localStorage.setItem('loans', JSON.stringify(loans));
-            let payments = JSON.parse(localStorage.getItem('payments')) || [];
-            payments = payments.filter(p => p.loanId !== loanId);
-            localStorage.setItem('payments', JSON.stringify(payments));
-            alert('✅ Loan deleted!');
-            goBack();
+        function deleteLoan(loanId) {
+            if (confirm('Are you sure you want to delete this loan? This action cannot be undone.')) {
+                loans = loans.filter(l => l.id !== loanId);
+                saveLoans();
+                goBackToList();
+                displayLoans();
+            }
+        }
+
+        function editLoan(loanId) {
+            alert('Edit feature coming soon!');
+        }
+
+        function showTab(event, tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            const tabButtons = document.querySelectorAll('.tab-btn');
+
+            tabContents.forEach(tab => tab.classList.remove('active'));
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            event.currentTarget.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'home') {
+                goBackToList();
+            }
+        }
+
+        function showFormMessage(message, type) {
+            const messageEl = document.getElementById('formMessage');
+            messageEl.textContent = message;
+            messageEl.className = 'alert alert-' + type;
+            if (type === 'success') {
+                setTimeout(() => {
+                    messageEl.textContent = '';
+                    messageEl.className = '';
+                }, 3000);
+            }
         }
     </script>
 </body>
